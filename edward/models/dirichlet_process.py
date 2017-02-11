@@ -57,16 +57,14 @@ class DirichletProcess(RandomVariable, Distribution):
         self._base = self._base_cls(*self._base_args, **self._base_kwargs)
         # Create empty tensor to store future atoms.
         self._theta = tf.zeros(
-            [0] +
-            self.get_batch_shape().as_list() +
-            self.get_event_shape().as_list(),
+            [0] + self.batch_shape.as_list() + self.event_shape.as_list(),
             dtype=self._base.dtype)
 
         # Instantiate beta distribution for stick breaking proportions.
         self._betadist = Beta(a=tf.ones_like(self.alpha), b=self.alpha)
         # Create empty tensor to store stick breaking proportions.
         self._beta = tf.zeros(
-            [0] + self.get_batch_shape().as_list(),
+            [0] + self.batch_shape.as_list(),
             dtype=self._betadist.dtype)
 
         super(DirichletProcess, self).__init__(
@@ -138,8 +136,8 @@ class DirichletProcess(RandomVariable, Distribution):
     if seed is not None:
       raise NotImplementedError("seed is not implemented.")
 
-    batch_shape = self.get_batch_shape().as_list()
-    event_shape = self.get_event_shape().as_list()
+    batch_shape = self.batch_shape.as_list()
+    event_shape = self.event_shape.as_list()
     rank = 1 + len(batch_shape) + len(event_shape)
     # Note this is for scoping within the while loop's body function.
     self._temp_scope = [n, batch_shape, event_shape, rank]
