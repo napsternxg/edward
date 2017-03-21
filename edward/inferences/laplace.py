@@ -11,7 +11,7 @@ from edward.util import get_session, get_variables
 
 try:
   from edward.models import \
-      MultivariateNormalCholesky, MultivariateNormalDiag, MultivariateNormalFull
+      MultivariateNormalDiag, MultivariateNormalTriL
 except Exception as e:
   raise ImportError("{0}. Your TensorFlow version is not supported.".format(e))
 
@@ -35,11 +35,10 @@ class Laplace(MAP):
                   dict of RandomVariable to RandomVariable
       Collection of random variables to perform inference on. If list,
       each random variable will be implictly optimized using a
-      ``MultivariateNormalCholesky`` random variable that is defined
+      ``MultivariateNormalTriL`` random variable that is defined
       internally (with unconstrained support). If dictionary, each
-      random variable must be a ``MultivariateNormalCholesky``,
-      ``MultivariateNormalFull``, or ``MultivariateNormalDiag`` random
-      variable.
+      random variable must be a ``MultivariateNormalDiag`` or
+      ``MultivariateNormalTriL`` random variable.
 
     Notes
     -----
@@ -55,26 +54,25 @@ class Laplace(MAP):
     >>> w = Normal(mu=tf.zeros(D), sigma=tf.ones(D))
     >>> y = Normal(mu=ed.dot(X, w), sigma=tf.ones(N))
     >>>
-    >>> qw = MultivariateNormalFull(mu=tf.Variable(tf.random_normal([D])),
-    >>>                             sigma=tf.Variable(tf.random_normal([D, D])))
+    >>> qw = MultivariateNormalTriL(
+    >>>     loc=tf.Variable(tf.random_normal([D])),
+    >>>     scale_tril=tf.Variable(tf.random_normal([D, D])))
     >>>
     >>> inference = ed.Laplace({w: qw}, data={X: X_train, y: y_train})
     """
     if isinstance(latent_vars, list):
       with tf.variable_scope("posterior"):
-        latent_vars = {rv: MultivariateNormalCholesky(
-            mu=tf.Variable(tf.random_normal(rv.batch_shape())),
-            chol=tf.Variable(tf.random_normal(
-                rv.get_batch_shape().concatenate(rv.get_batch_shape()[-1]))))
+        latent_vars = {rv: MultivariateNormalTriL(
+            loc=tf.Variable(tf.random_normal(rv.batch_shape())),
+            scale_tril=tf.Variable(tf.random_normal(
+                rv.batch_shape.concatenate(rv.batch_shape[-1]))))
             for rv in latent_vars}
     elif isinstance(latent_vars, dict):
       for qz in six.itervalues(latent_vars):
-        if not isinstance(
-            qz, (MultivariateNormalCholesky, MultivariateNormalDiag,
-                 MultivariateNormalFull)):
+        if not isinstance(qz, (MultivariateNormalDiag, MultivariateNormalTriL)):
           raise TypeError("Posterior approximation must consist of only "
-                          "MultivariateCholesky, MultivariateNormalDiag, "
-                          "or MultivariateNormalFull random variables.")
+                          "MultivariateNormalDiag or MultivariateTriL "
+                          "random variables.")
 
     # call grandparent's method; avoid parent (MAP)
     super(MAP, self).__init__(latent_vars, data)
@@ -93,15 +91,13 @@ class Laplace(MAP):
     self.finalize_ops = []
     for z, hessian in zip(six.iterkeys(self.latent_vars), hessians):
       qz = latent_vars_normal[z]
-      sigma_var = get_variables(qz.sigma)[0]
-      if isinstance(qz, MultivariateNormalCholesky):
-        sigma = tf.matrix_inverse(tf.cholesky(hessian))
-      elif isinstance(qz, MultivariateNormalDiag):
-        sigma = 1.0 / tf.diag_part(hessian)
-      else:  # qz is MultivariateNormalFull
-        sigma = tf.matrix_inverse(hessian)
+      scale_var = get_variables(qz.scale)[0]
+      if isinstance(qz, MultivariateNormalDiag):
+        scale = 1.0 / tf.diag_part(hessian)
+      else:  # qz is MultivariateNormalTriL
+        scale = tf.matrix_inverse(tf.cholesky(hessian))
 
-      self.finalize_ops.append(sigma_var.assign(sigma))
+      self.finalize_ops.append(scale_var.assign(scale))
 
     self.latent_vars = latent_vars_normal.copy()
     del latent_vars_normal
