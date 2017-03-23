@@ -27,24 +27,24 @@ class test_random_variable_value_class(tf.test.TestCase):
 
   def test_shape_and_dtype(self):
     with self.test_session():
-      self._test_sample(Normal, 2, mu=0.5, sigma=1.0)
-      self._test_sample(Normal, [2], mu=[0.5], sigma=[1.0])
-      self._test_sample(Poisson, 2, lam=0.5)
+      self._test_sample(Normal, 2, loc=0.5, scale=1.0)
+      self._test_sample(Normal, [2], loc=[0.5], scale=[1.0])
+      self._test_sample(Poisson, 2, rate=0.5)
 
   def test_mismatch_raises(self):
     with self.test_session():
       self.assertRaises(ValueError, self._test_sample, Normal, 2,
-                        mu=[0.5, 0.5], sigma=1.0)
+                        loc=[0.5, 0.5], scale=1.0)
       self.assertRaises(ValueError, self._test_sample, Normal, 2,
-                        mu=[0.5], sigma=[1.])
+                        loc=[0.5], scale=[1.])
       self.assertRaises(ValueError, self._test_sample, Normal, [2],
-                        mu=0.5, sigma=1.0)
+                        loc=0.5, scale=1.0)
 
   def test_copy(self):
     with self.test_session():
-      self._test_copy(Normal, 2, mu=0.5, sigma=1.0)
-      self._test_copy(Normal, [2], mu=[0.5], sigma=[1.0])
-      self._test_copy(Poisson, 2, lam=0.5)
+      self._test_copy(Normal, 2, loc=0.5, scale=1.0)
+      self._test_copy(Normal, [2], loc=[0.5], scale=[1.0])
+      self._test_copy(Poisson, 2, rate=0.5)
 
 if __name__ == '__main__':
   tf.test.main()
