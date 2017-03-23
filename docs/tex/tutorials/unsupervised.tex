@@ -90,10 +90,10 @@ from edward.models import Categorical, InverseGamma, Normal
 
 K = 2  # number of components
 
-mu = Normal(mu=tf.zeros([K, D]), sigma=tf.ones([K, D]))
-sigma = InverseGamma(alpha=tf.ones([K, D]), beta=tf.ones([K, D]))
+mu = Normal(loc=tf.zeros([K, D]), scale=tf.ones([K, D]))
+sigma = InverseGamma(tf.ones([K, D]), tf.ones([K, D]))
 c = Categorical(logits=tf.zeros([N, K]))
-x = Normal(mu=tf.gather(mu, c), sigma=tf.gather(sigma, c))
+x = Normal(loc=tf.gather(mu, c), scale=tf.gather(sigma, c))
 \end{lstlisting}
 
 The collapsed version marginalizes out the mixture assignments. We
@@ -105,12 +105,12 @@ from edward.models import Categorical, InverseGamma, Mixture, \
 
 K = 2  # number of components
 
-mu = Normal(mu=tf.zeros([K, D]), sigma=tf.ones([K, D]))
-sigma = InverseGamma(alpha=tf.ones([K, D]), beta=tf.ones([K, D]))
+mu = Normal(loc=tf.zeros([K, D]), scale=tf.ones([K, D]))
+sigma = InverseGamma(tf.ones([K, D]), tf.ones([K, D]))
 cat = Categorical(logits=tf.zeros([N, K]))
 components = [
-    MultivariateNormalDiag(mu=tf.ones([N, 1]) * mu[k],
-                           diag_stdev=tf.ones([N, 1]) * sigma[k])
+    MultivariateNormalDiag(loc=tf.ones([N, 1]) * mu[k],
+                           scale_diag=tf.ones([N, 1]) * sigma[k])
     for k in range(K)]
 x = Mixture(cat=cat, components=components)
 \end{lstlisting}
@@ -133,11 +133,11 @@ Define the variational model to be
 The model in Edward is
 \begin{lstlisting}[language=Python]
 qmu = Normal(
-    mu=tf.Variable(tf.random_normal([K, D])),
-    sigma=tf.nn.softplus(tf.Variable(tf.zeros([K, D]))))
+    loc=tf.Variable(tf.random_normal([K, D])),
+    scale=tf.nn.softplus(tf.Variable(tf.zeros([K, D]))))
 qsigma = InverseGamma(
-    alpha=tf.nn.softplus(tf.Variable(tf.random_normal([K, D]))),
-    beta=tf.nn.softplus(tf.Variable(tf.random_normal([K, D]))))
+    tf.nn.softplus(tf.Variable(tf.random_normal([K, D]))),
+    tf.nn.softplus(tf.Variable(tf.random_normal([K, D]))))
 \end{lstlisting}
 
 Run variational inference for 4000 iterations and 20 latent variable
@@ -168,8 +168,8 @@ We perform this averaged over 100 posterior samples.
 # averaged over many posterior samples. ``x_post`` has shape (N, 100, K, D).
 mu_sample = qmu.sample(100)
 sigma_sample = qsigma.sample(100)
-x_post = Normal(mu=tf.ones([N, 1, 1, 1]) * mu_sample,
-                sigma=tf.ones([N, 1, 1, 1]) * sigma_sample)
+x_post = Normal(loc=tf.ones([N, 1, 1, 1]) * mu_sample,
+                scale=tf.ones([N, 1, 1, 1]) * sigma_sample)
 x_broadcasted = tf.tile(tf.reshape(x_train, [N, 1, 1, D]), [1, 100, K, 1])
 
 # Sum over latent dimension, then average over posterior samples.
